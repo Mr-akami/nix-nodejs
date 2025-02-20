@@ -10,14 +10,14 @@ packages.mkShell {
 
   # 基本シェルから buildInputs を継承
   buildInputs = baseShell.buildInputs ++ (with packages; [
-    nodejs_22 # Node.js v22
+    deno # deno latest
     nodePackages.pnpm # pnpmを追加
   ]);
 
   shellHook = ''
     ${baseShell.shellHook}
-    echo "Node.js development environment activated"
-    echo "Node.js version: $(node --version)"
+    echo "Deno development environment activated"
+    echo "Deno version: $(deno --version)"
     echo "pnpm version: $(pnpm --version)" 
   '';
 }

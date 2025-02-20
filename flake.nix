@@ -22,6 +22,7 @@
         devShells = {
           default = import ./shells/shell.nix { inherit packages; };
           node = import ./environments/node/shell.nix { inherit packages; };
+          deno = import ./environments/deno/shell.nix { inherit packages; };
         };
       }
     );
