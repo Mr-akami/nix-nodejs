@@ -19,10 +19,15 @@
         packages = nixpkgs.legacyPackages.${system};
       in
       {
+        packages = {
+          default = packages.deno;  # ここに `defaultPackage` を追加
+        };
+      
         devShells = {
           default = import ./shells/shell.nix { inherit packages; };
           node = import ./environments/node/shell.nix { inherit packages; };
           deno = import ./environments/deno/shell.nix { inherit packages; };
+          full = import ./environments/full/shell.nix { inherit packages; };
         };
       }
     );

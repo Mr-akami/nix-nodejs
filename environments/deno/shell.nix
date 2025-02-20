@@ -1,48 +1,65 @@
+# nixpkgsをインポートするための基本的な関数定義
+# packagesパラメータが指定されていない場合は、システムのnixpkgsを使用
 { packages ? import <nixpkgs> {} }:
 
 let
-  # 共通の設定を読み込む
+  # 基本的な開発環境の設定をインポート
+  # inheritキーワードは、現在のスコープからpackagesを渡すための簡潔な書き方
   baseShell = import ../../shells/shell.nix { inherit packages; };
-  # denoをビルド
-  denoLatest = packages.deno.overrideAttrs (oldAttrs: {
+
+  # Denoの実行環境を定義
+  # stdenv.mkDerivationは、Nixパッケージをビルドするための基本的な関数
+  denoLatest = packages.stdenv.mkDerivation rec {
+    # パッケージ名を定義
+    pname = "deno";
+    # バージョンを指定（recキーワードにより、この値は下部で${version}として参照可能）
     version = "2.2.0";
+
+    # ソースコードの取得設定
+    # fetchurlは、指定されたURLからファイルをダウンロードする関数
     src = packages.fetchurl {
-      url = "https://github.com/denoland/deno/releases/download/v2.2.0/deno-x86_64-unknown-linux-gnu.zip";
-      sha256 = "sha256-KoB1bWj4eNjAvsgPsVxNA/WciWjpdMwCpGPEzVHgWo0=";
+      # ダウンロードするバイナリのURL
+      url = "https://github.com/denoland/deno/releases/download/v${version}/deno-x86_64-unknown-linux-gnu.zip";
+      # ファイルの整合性を確認するためのハッシュ値
+      # nix-prefetch-urlコマンドで取得可能
+      sha256 = "0fsvgars9dmxiw1ril151djhg63rwf8r38haz1qzqkjrbcjbh6ir";
     };
-  });
 
-  # denoLatest = packages.stdenv.mkDerivation rec {
-  #   pname = "deno";
-  #   version = "1.40.1"; # 任意のDenoバージョン
+    # ビルドに必要なツール（この場合はzipファイルの解凍に必要なunzip）
+    nativeBuildInputs = [ packages.unzip ];
 
-  #   src = packages.fetchFromGitHub {
-  #     owner = "denoland";
-  #     repo = "deno";
-  #     rev = "v2.2.0";  # GitHubのタグを指定
-  #     sha256 = "13asw18wvi33lh1cqx79d24rrx839mfb23y8pv0dhy7qd1npb01a"; # `nix-prefetch-url` で取得
-  #   };
+    # ソースの展開フェーズの定義
+    # ''で囲まれた部分はシェルスクリプトとして実行される
+    unpackPhase = ''
+      # バイナリを配置するディレクトリを作成
+      mkdir -p $out/bin
+      # zipファイルを解凍
+      unzip $src -d $out/bin
+      # バイナリに実行権限を付与
+      chmod +x $out/bin/deno
+    '';
 
-  #   buildInputs = [ packages.cmake packages.rustc packages.cargo ];
-
-  #   installPhase = ''
-  #     mkdir -p $out/bin
-  #     cp target/release/deno $out/bin/
-  #   '';
-  # };
+    # インストールフェーズの定義
+    installPhase = ''
+      # インストール完了メッセージを表示
+      echo "Deno installed at $out/bin/deno"
+    '';
+  };
 in
+# 開発シェル環境の定義
 packages.mkShell {
-  # 基本シェルから設定を継承
-#   inherit (baseShell) pure;
+  # 環境で利用可能にするパッケージのリスト
+  # baseShellのbuildInputsに、Denoとpnpmを追加
+  buildInputs = baseShell.buildInputs ++ [
+    denoLatest
+    packages.nodePackages.pnpm
+  ];
 
-  # 基本シェルから buildInputs を継承
-  buildInputs = baseShell.buildInputs ++ (with packages; [
-    denoLatest # deno latest
-    nodePackages.pnpm # pnpmを追加
-  ]);
-
+  # シェルが起動したときに実行されるスクリプト
   shellHook = ''
+    # 基本的な開発環境のシェルフックを実行
     ${baseShell.shellHook}
+    # 環境情報を表示
     echo "Deno development environment activated"
     echo "Deno version: $(deno --version)"
     echo "pnpm version: $(pnpm --version)" 
